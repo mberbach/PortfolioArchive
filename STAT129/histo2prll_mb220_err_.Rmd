@@ -1,0 +1,89 @@
+---
+title: "histo2prll_mb220_err_"
+author: "Michael Berbach"
+date: "2023-02-21"
+output: html_document
+---
+### Question 1
+
+I modified the pipeline:
+
+```{r}
+# time zgrep "TAVG" /stat129/*.gz | cut -d"," -f 4 | sort -n | uniq -c | awk '{print $1","$2}' > tAVG215mb.csv
+# 
+# 
+# to
+# 
+# 
+# time ls /stat129/*.gz | parallel 'zgrep "TAVG" {} | cut -d"," -f 4 | sort -n | uniq -c | awk "{print \$1\",\"$2}"' > tAVG215mb.csv
+```
+
+
+
+The idea was that ls would feed each file into the pipeline, handling each file as a chunk that would then be written into the csv file. However there is some sort of logic error I am still working out. Initially it was getting the awk command to work within the '', since that is typically its own notation. It required proper placement of \ to get it to make something reasonable. However the file output is still different that the original tAVG file, so more testing is necessary.
+
+```{r}
+hist_from_count = function(countfile, upper = 140, lower = -60, varname = "temperature (degrees F)", ...)
+{
+    # Plot a histogram of the temperature for our weather data.
+
+    d = read.table(countfile, row.names = NULL, sep = ",")
+    colnames(d) = c("count", "value")
+    d[["count"]] = as.numeric(d[["count"]])
+
+    # Convert from tenths of degree celsius to Fahrenheit
+    d[["value"]] = (d[["value"]]/10 * (9/5)) + 32
+
+    # Drop outliers
+    d = d[lower < d[["value"]] & d[["value"]] < upper, ]
+
+    # general logic for creating a histogram from output of bash table:
+    #        sort | uniq --count > counts.txt
+    result = hist(d[["value"]], plot = FALSE, ...)
+    d[["bin"]] = cut(d[["value"]], breaks = result[["breaks"]])
+    counts = tapply(d[["count"]], d[["bin"]], sum)
+    counts[is.na(counts)] = 0
+
+    result[["counts"]] = counts
+    result[["density"]] = counts / sum(counts)
+    result[["xname"]] = varname
+    result
+}
+
+
+# Example if you've saved resulting table as temp_counts.txt
+h = hist_from_count("C:\\Users\\mikeb\\Documents\\Stat129\\tAVG220Prll.csv")
+plot(h)
+```
+
+
+After looking at the histogram though, it appears to take a similar shape as the original file, but shows a greater spread? Really not sure what the deal is. I also noticed that RMD is not showing the exact notation, taking out the slashes and hyphens, so I'll have to go back and probably turn it into r-code as a comment.
+
+
+
+
+I did go back and turn it into R-code comments and that seems to preserve it better.
+
+### Question 2
+
+Despite the aforementioned, the parallel process was 3.8x faster than the non-parallel process. I'll include the time stamps below
+
+***Original time***
+![time of OG pipeline](tmuxTime_1635_215mb1histo.png)
+***Time in parallel***
+![time of prll pipeline](time2_prll1030_mb220.png)
+
+that is about 2 mins and 30 seconds if you are having a hard time seeing that last picture.
+
+### Question 3
+![Screen cap of best htop](htop2_prll1030_mb220.png)
+
+This is part of why I initially thought the idea would work, since each core appears to be moving chunks through a pipeline. Though I only see three sort commands and three cut commands so not sure what the deal is there. I suppose it did work in some capacity, but I'm pretty sure the data I pulled is not quite right.
+
+
+I'll add a closeup of the exouser processes as well as another cap from another run.
+
+***This is a close up of the exouser processes***
+![close up of best htop](htop2_prll1030_mb220_fcsd.png)
+***This run had a logic error in the awk command***
+![awk error run Htop](htop2_prll1004_mb220_awkEr.png)
