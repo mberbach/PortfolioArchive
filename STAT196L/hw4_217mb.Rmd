@@ -1,0 +1,45 @@
+---
+title: "Hw4_217MB"
+author: "Michael Berbach"
+date: "2023-02-17"
+output: html_document
+---
+### Question 1
+
+```{r}
+require("faraway")
+
+lmod = lm(qsec ~ mpg + cyl + disp + hp + wt, data = mtcars)#lmod
+nullmod = lm(qsec ~ hp + wt, data = mtcars) #null mod
+(rss0 <- deviance(nullmod))
+(rss <- deviance(lmod))
+(df0 <- df.residual(nullmod))
+(df <- df.residual(lmod))
+(fstat <- ((rss0-rss)/(df0-df))/(rss/df))
+1-pf(fstat, df0-df, df)
+```
+
+Looks to match the anova(simple_model, big_model) call from slide 9 of lecture deck 7-inference
+
+### Question 2
+```{r}
+modHlth = lm(lpsa ~ pgg45+gleason+lcp+svi+lbph+age+lweight+lcavol, data=prostate)
+
+# part a
+
+confint(modHlth, c("age"), level = .9)
+confint(modHlth, c("age"), level = .95)
+```
+
+We could deduce that the p-value is close to being considered reasonably statistically significant since the 90% confidence interval does not contain 0 but the 95% confidence interval does. Had both not included 0 we could reject the null and prove B is not 0.
+
+```{r}
+# Part b
+require("ellipse")
+plot(ellipse(modHlth, c('age','lbph'), type = "1"))
+abline(v= confint(modHlth)['age',], lty = 2)
+abline(v= confint(modHlth)['lbph',], lty = 2)
+# why is my interval coming out as dots instead of continual line?
+# hmm
+```
+
