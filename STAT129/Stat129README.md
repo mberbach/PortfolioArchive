@@ -1,2 +1,3 @@
 v0.1
-All files related to STAT129 Spr 23 unsorted 
+
+All files related to CSUS STAT129(Big Data) Spr 23, unsorted
