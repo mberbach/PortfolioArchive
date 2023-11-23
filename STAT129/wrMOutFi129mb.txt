@@ -1,0 +1,81 @@
+1. What are the dimensions of your matrix?
+Rows by columns:  (147007, 96610) 
+
+2. How many bytes of memory are used to represent the matrix in sparse form?
+Memory used by sparse matrix:  29605856 Bytes
+
+3. How many bytes of memory would used to represent the matrix in dense form?
+Memory used by dense matrix  113618770160 Bytes
+
+4. Which are the top 10 most frequent words? Are they meaningful, or should they be removed?
+Printing listed sets of top words and their associated values: 
+
+[('and', 289040), ('the', 252456), ('to', 206472), ('of', 153689), ('in', 106865), ('for', 104874), ('with', 41569), ('community', 34516), ('provide', 33322), ('school', 28771)] 
+
+[('and', 10110.47108139903), ('the', 9240.369555780646), ('to', 8333.33270644368), ('of', 6555.489288571374), ('for', 5505.698523986345), ('in', 4850.775479952589), ('provide', 3261.938897526521), ('community', 2965.0341334142117), ('support', 2690.9230503226186), ('school', 2455.0310531272453)] 
+
+most all of these are not meaningful and should be removed except for maybe the last three
+
+5. Experiment with the min_df, max_df arguments to CountVectorizer. Which values did you choose, and why?
+Printing listed sets of top words with modified min_df and max_df arguements: 
+
+[('with', 41569), ('community', 34516), ('provide', 33322), ('school', 28771), ('support', 27635), ('is', 26918), ('program', 25410), ('on', 24097), ('by', 23613), ('members', 23382)] 
+
+I chose my max at wround where the higher word count started to become relevant in my opinion.
+              I chose the lower word count just to start seeing how much data I could shave off and what effects it had.
+              Seems like certain words will still slip by the max/min arguements. I am not sure why.
+              For example, in this case the word with appears to exceed the max_df limitation but still appears.
+
+6. Apply a regular expression to the descriptions to find ONE nonprofit that you find interesting.
+Verify that the bag of words approach does the correct operation on this particular description, both in the counts and the TF-IDF.
+
+Original document:  this hunting club was organized in order for area hunters to inexpensively lease forest land and to promote wildlife management.
+
+
+        Words in matrix:
+        ----------------
+and
+for
+to
+was
+organized
+promote
+in
+this
+management
+area
+order
+club
+land
+wildlife
+hunting
+inexpensively
+hunters
+lease
+forest
+
+For TF-IDF matrix:
+Original document:  this hunting club was organized in order for area hunters to inexpensively lease forest land and to promote wildlife management.
+
+
+        Words in matrix:
+        ----------------
+forest
+lease
+hunters
+inexpensively
+hunting
+wildlife
+land
+club
+order
+area
+management
+this
+in
+promote
+organized
+was
+to
+for
+and
