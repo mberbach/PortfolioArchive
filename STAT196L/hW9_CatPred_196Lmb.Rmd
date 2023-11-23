@@ -1,0 +1,136 @@
+---
+title: "hW9_CatPred_196Lmb"
+author: "Michael Berbach"
+date: "2023-04-02"
+output: html_document
+---
+
+warming up
+```{r}
+require(faraway)
+require(ggplot2)
+require(dplyr)
+require(graphics)
+```
+
+
+# Problem 1, Question 1
+```{r}
+#data(teengamb)
+
+G3mod = lm(gamble ~ sex:income+income,data=teengamb)# best one
+G2mod = lm(gamble ~ sex*income+verbal,data=teengamb)
+Sf4mod = lm(gamble ~ sex+income,data=teengamb)
+
+#sumary(G3mod) # best one
+#sumary(G2mod)
+#sumary(Sf4mod)
+anova(G3mod)
+anova(G2mod)
+anova(Sf4mod)
+
+# Gmod = lm(gamble ~ sex*status+sex*income+sex*verbal,data=teengamb)
+# Sf3mod = lm(gamble ~ sex+income+verbal,data=teengamb)
+# Smod = lm(gamble ~ status+sex+income+verbal,data=teengamb)
+# Amod = lm(gamble ~ sex:status+sex+sex:income+sex:verbal,data=teengamb)
+# G1mod = lm(gamble ~ sex+status+sex:income+verbal,data=teengamb)
+#
+# sumary(Gmod)
+# Residual SE = 20.97834, R-Squared = 0.62
+#
+# sumary(Sf3mod)
+# Residual SE = 22.43416, R-Squared = 0.53
+#
+# sumary(G1mod)
+# Residual SE = 28.24560, R-Squared = 0.27
+#
+# sumary(Smod)
+# Residual SE = 22.69034, R-Squared = 0.53
+#
+# sumary(Amod)
+# Residual SE = 30.07320, R-Squared = 0.17
+```
+
+Using the teengamb data, model gamble as the response and the other variables as predictors, investigate the possibility of interactions between sex and the other predictors. Interpret your final model.
+
+I generated a number of models with the goal of creating what I would consider the best one. It would appear that the most significant predictor of the outcome of gambling expenditures is income, and the effect of sex on income. Specifically, being female appears to have a negative correlation with gambling expenditure. As per office hours, the chances of a female teenage in the UK at the time the data was collected is less likely to gamble the more money they earn. There are likely some social reasons as well as that those who earn less tend to be less financially educated, hence may gamble more.
+
+
+# Problem 2, Question 8
+Ankylosing spondylitis is a chronic form of arthritis. A study was conducted to determine whether daily stretching of the hip tissues would improve mobility. The data are found in hips. The flexion angle of the hip before the study is a predictor and the flexion angle after the study is the response.
+
+
+## (a)
+Plot the data using different plotting symbols for the treatment and the control status.
+```{r}
+#managed to fix ggplot2, had something to do with version inconsistency it seems- fixed by updates
+ggplot(hips, aes(x=fbef,y=faft))+geom_point(aes(shape=grp, color=grp))+ggtitle("Flexion Angle with respect to Treatment")+theme(plot.title = element_text(hjust = .5))
+```
+## (b)
+Fit a model to determine whether there is a treatment effect.
+```{r}
+modh = lm(faft ~ fbef+grp, data=hips)
+model.matrix(modh) %>% head
+model.matrix(modh) %>% tail
+sumary(modh)
+anova(modh)
+```
+There does appear to be an effect from treatment
+
+## (c)
+Compute the difference between the flexion before and after and test whether this difference varies between treatment and control. Contrast this approach to your previous model.
+```{r}
+data(hips)
+hips %>%
+  mutate(dif=faft-fbef) -> hips
+modf = lm(dif ~ grp, data=hips)
+sumary(modf)
+anova(modf)
+
+```
+Since this the p-value for grp is greater than the significance level threshold of 5%, it can be concluded that the grp factor is not significant in the model. This means that there is no treatment effect in the model, and the difference between "fbef" and "faft" does not differ between the control and treatment groups.
+The previous model, modh, is predicting flexion angle after treatment based on treatment group and previous felxion range, which it is somewhat capable of explaining. However modf looks to predict the difference in flexion angle based on treatment grouping. Demonstrably, treatment group in this model does not explain the difference in flexion range.
+
+## (d)
+Check for outliers. Explain why we might remove the three cases with fbef less than 90. Refit an appropriate model and check for a treatment effect.
+```{r}
+plot(modh)
+tempm = lm(faft ~ fbef+grp, data=hips[-c(49,50,36),])
+sumary(tempm)
+```
+they are unusual observations that apply a leverage on the data set that worsens the model's fit.
+
+## (e)
+What is the estimated size of the treatment effect? Give a 95% confidence interval.
+```{r}
+confint(modf, level = .95)
+```
+## (f)
+Both legs of each subject have been included in the study as separate observations. Explain what difficulties this causes with the model assumptions.
+
+Including both legs as separate observations in an ANOVA test could violate the assumption it makes of independence in the observations. Presumably the observation of one leg is dependent on the other leg since it belongs to the same person.
+
+## (g)
+Compute the average angles for each subject and repeat the modeling with this reduced data set. Point out any differences in the conclusions.
+```{r}
+hips %>%
+  group_by(person, grp) %>%
+  select(fbef, faft) %>%
+  summarize(N=n(), mfbef=mean(fbef), mfaft=mean(faft)) -> hipsAvg
+
+avgMod = lm(mfaft ~ mfbef+grp,data=hipsAvg)
+sumary(avgMod)
+anova(avgMod)
+```
+There isnt a significant difference between the conclusion of avgMod and modh. It does appear that factor grp is somewhat less relevant in explaining the mean flexion angle after treatment. Though overall, using the predictors of mean flexion before treatment and grouping does a better job of explaining the variance in the response.
+
+# Problem 3, Question 1
+Using the pulp data, determine whether there are any differences between the operators. What is the nature of these differences?
+```{r}
+#data(pulp)
+pulMod = lm(bright ~ operator, data = pulp)
+summary(pulMod)
+anova(pulMod)
+drop1(pulMod)
+```
+I thought the drop1() function was good for comparing this sort of thing, but I can't really make sense of that read out. Based on the summary() and anova() output of the model's p-value compared to the null model, I would say there isn't a significant difference between the operators. However, in explaining the brightness of the pulp only operator d seems to have a significance to the response.

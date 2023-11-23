@@ -1,0 +1,136 @@
+---
+title: "HW12MB196L"
+author: "Michael Berbach"
+date: "2023-04-24"
+output: html_document
+---
+warming up
+  The National Institute of Diabetes and Digestive and Kidney Diseases conducted
+a study on 768 adult female Pima Indians living near Phoenix. The purpose of the
+study was to investigate factors related to diabetes. The data may be found in the
+the dataset pima.
+
+```{r}
+require(faraway)
+library(ggplot2)
+```
+
+
+## 1. Create a factor version of the test results and use this to produce an interleaved histogram to show how the distribution of insulin differs between those testing positive and negative. Do you notice anything unbelievable about the plot?
+
+```{r}
+data("pima")
+pima$test_factor <- factor(pima$test, levels = c(0, 1), labels = c("Negative", "Positive"))
+
+ggplot(pima, aes(x=insulin, color=test_factor)) +
+  geom_histogram(alpha=.2, position="dodge", bins=50)
+
+```
+
+I would say it is unbelievable the amount of those who seem to be positive for diabetes who are also not getting any insulin. Worth checking into and not just betting on terrible healthcare. Not normally distributed either.
+
+
+## 2. Replace the zero values of insulin with the missing value code NA. Recreate the interleaved histogram plot and comment on the distribution.
+
+```{r}
+pima$insulin[pima$insulin == 0] <- NA
+ggplot(pima, aes(x=insulin, color=test_factor)) +
+  geom_histogram(alpha=.2, position="identity", bins=50)
+```
+
+Now appears normally distributed, with fewer if any positive results having no insulin intake.
+
+
+## 3. Replace the incredible zeroes in other variables with the missing value code. Fit a model with the result of the diabetes test as the response and all the other variables as predictors. How many observations were used in the model fitting? Why is this less than the number of observations in the data frame.
+
+```{r}
+pima$glucose[pima$glucose == 0] <- NA
+pima$diastolic[pima$diastolic == 0] <- NA
+pima$triceps[pima$triceps == 0] <- NA
+pima$bmi[pima$bmi == 0] <- NA
+
+#summary(pima$test_factor)
+
+#mod <- glm(test_factor ~ . - test, data = pima, family = binomial)
+mod <- glm(test_factor ~ insulin+triceps+pregnant + glucose + diastolic + bmi + age, data = pima, family = binomial)
+nrow(mod$data)
+nrow(pima)
+summary(mod)
+```
+
+
+It says that 376 observations deleted due to missingness from summary(). I assume it is the rows we exchanged non-sense zeros to NA being removed. Though I just used the nrow() function and it is returning the same number of rows for both the model and the dataframe. I assume that either nrow() is also removing NA rows, or the data attribute of mod is determined before row removal.
+
+768-376=
+392 observations used otherwise based on summary().
+
+
+## 4. Refit the model but now without the insulin and triceps predictors. How many observations were used in fitting this model? Devise a test to compare this model with that in the previous question.
+
+```{r}
+#modUn <- glm(test_factor ~ . - test - insulin - triceps, data = pima, family = binomial)
+modUn <- glm(test_factor ~ pregnant + glucose + diastolic + bmi + age, data = pima, family = binomial)
+summary(modUn)
+nrow(modUn$data)
+```
+
+I think using subtraction notation is the problem. Going to try to alter that to see if I can get something different since nrow() on modUn is giving me the same results much like the other model.
+
+That did not fix anything, I am still getting the same number from nrow().
+
+Checking summary, it is now giving me 44 observations deleted due to missingness for modUn instead of the 376. This is different.
+So, 768-44 =
+724 observations used
+
+
+## 5. Use AIC to select a model. You will need to take account of the missing values. Which predictors are selected? How many cases are used in your selected model? 
+
+```{r}
+mod <- glm(test_factor ~ insulin+triceps+pregnant + glucose + diastolic + bmi + age, data = pima, family = binomial, na.action = na.exclude)
+modUn <- glm(test_factor ~ pregnant + glucose + diastolic + bmi + age, data = pima, family = binomial, na.action = na.exclude)
+modDu <- glm(test_factor ~ pregnant + glucose + bmi + age, data = pima, family = binomial, na.action = na.exclude)
+#summary(modDu)
+aics <- AIC(mod, modUn, modDu)
+aics
+#mod lowest AIC of 367.5805
+```
+
+
+I selected predictors by using the last two models, then whittling down a couple more predictors based on P-value to make a third model for comparison. If I calculated correctly in question 3, as mod was select for its lowest AIC, there would be 392 observations/cases.
+
+
+## 6. Create a variable that indicates whether the case contains a missing value. Use this variable as a predictor of the test result. Is missingness associated with the test result? Refit the selected model, but now using as much of the data as reasonable. Explain why it is appropriate to do this.
+
+```{r}
+#pima$test_factor <- factor(pima$test, levels = c(0, 1), labels = c("Negative", "Positive"))
+pima$missingness <- factor(ifelse(rowSums(is.na(pima)) > 0, 0, 1), levels = c(0, 1),labels = c("Missing", "Not Missing"))
+summary(pima$missingness)
+modMiss <- glm(test_factor ~ missingness, data = pima, family = binomial)
+sumary(modMiss)
+#modAll <- glm(test_factor ~ . - test - test_factor-missingness, data = pima, family = binomial)
+
+```
+
+
+Missingness does not seem associated with the test result. Trying to fit modAll keeps giving me this error:
+
+Error in `contrasts<-`(`*tmp*`, value = contr.funs[1 + isOF[nn]]) :
+contrasts can be applied only to factors with 2 or more levels
+
+Originally I thought it was the way I was creating missingness, as it was using a string value as the factor. I have since adjusted to what I understand to be the appropriate data type for a two level factor, but this error has persisted. I don't see any factors with only one value/level in my pima set.
+
+```{r}
+head(pima)
+```
+
+I see under missingness it has <\ ord \>. I guess it's still being made in the wrong way? Where as test_factor has <\ fctr \>, which I was previously giving me no problems. Maybe I want <\ fctr \>, dropping ordered = TRUE arguement.
+(not displayed in knitted html)
+
+
+Welp, missingness now reads as a <\ fctr \> and the problem persists. Not sure what the issue is.
+
+I think it is automatically removing all the missing NA rows, which is giving me only data with "Not Missing" as the factor. I'm going to see if removing missingness fixes it.
+
+Nope not that.
+
+In any case, if I understand correctly, the idea is to illustrate that the more data you use the lower the AIC, the better the fit of the model.

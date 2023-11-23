@@ -1,0 +1,160 @@
+---
+title: "proj1_317mb"
+author: "Michael Berbach"
+output: html_document
+date: "`r Sys.Date()`"
+---
+```{r, include=FALSE}
+require(dplyr)
+require(lubridate)
+require(ggplot2)
+require(tidyr)
+#require(car)
+#require(RColorBrewer)
+#require(ggpubr)
+
+
+oxford = read.csv("oxford_weather.csv",
+                  colClasses = c("integer", "character", "character", "integer"))
+
+oxford %>%
+  pivot_wider(names_from = element, values_from = value)->
+  bildPrim
+
+# Extract the day of the year
+bildPrim %>%
+  mutate(date = ymd(paste0(year, date))) %>%
+  mutate(day_of_month = day(date)) ->
+  bildPrim
+
+bildPrim %>%
+  mutate(mo_of_year = month(date)) ->
+  bildPrim
+
+bildPrim %>%
+  mutate(jan = ifelse(mo_of_year==1,1,0),
+         feb = ifelse(mo_of_year==2,1,0),
+         march = ifelse(mo_of_year==3,1,0),
+         april = ifelse(mo_of_year==4,1,0),
+         may = ifelse(mo_of_year==5,1,0),
+         june = ifelse(mo_of_year==6,1,0),
+         july = ifelse(mo_of_year==7,1,0),
+         aug = ifelse(mo_of_year==8,1,0),
+         sept = ifelse(mo_of_year==9,1,0),
+         oct = ifelse(mo_of_year==10,1,0),
+         nov = ifelse(mo_of_year==11,1,0),
+         dec = ifelse(mo_of_year==12,1,0),
+  ) -> bildPrim
+
+bildPrim %>%
+  select(-c(date,PRCP))->
+  bildPrim
+
+# Convert temperatures to Fahrenheit
+bildPrim$TMAX <- ((9/5) * (bildPrim$TMAX/10) + 32)
+bildPrim$TMIN <- ((9/5) * (bildPrim$TMIN/10) + 32)
+
+midPtVal<-c()
+
+for (i in 1:nrow(bildPrim)){
+  tempBuf <- c(bildPrim$TMAX[i],bildPrim$TMIN[i])
+  midPtVal[i] = median(tempBuf)
+}
+
+bildPrim %>%
+  mutate(dailyMid = midPtVal) ->
+  bildPrim
+
+bildPrim %>%
+  drop_na(dec)->
+  bildPrim  
+
+# December is being dropped by R because it appears to be causing a singularity issue,
+# correlated with the intercept and year variables?
+# SOOOO that means if I need to do a prediction for dec I need to remove the year?
+# that isnt the problem i guess
+med0Mod=lm(dailyMid ~ year+jan+feb+march+april+may+june+july+aug+sept+oct+nov,data = bildPrim)
+
+summary(med0Mod)
+plot(bildPrim$year, bildPrim$dailyMid, 
+     main = "Daily Midpoint Temperature", 
+     xlab = "Year", ylab = "Temperature (F)")
+abline(med0Mod, col = "red", lwd = 2)
+
+plot(bildPrim$mo_of_year, bildPrim$dailyMid, 
+     main = "Daily Midpoint Temperature", 
+     xlab = "months without respect to year", ylab = "Temperature (F)")
+```
+
+
+### Abstract
+
+My goal with this project was to create a predictive model of the daily median temperature as I was interested in developing a method of flagging which months could potentially experience frost. As someone who grows plants, I know the pain of losing plants to harsh frost, so developing a tool that might help the good people of Oxford preserve their plants was a personal matter. Ultimately, it provided a method that can chart the course of temperatures in Oxford and gauge trends that occur over the years. It did encompass and express the seasonal changes over the months, as well as year over year warming. With regards to the construction of this model, it became apparent that the most impactful predictors were the year and the months excluding December. Since December is the last month of the year, I hypothesized that it is highly correlated with the year variable, which may have caused a singularity issue in the model. However, upon removing the year predictor singularities were still produced and December was ultimately dropped. 
+
+
+#### Model Description
+
+med0Mod=lm(dailyMid ~ year+jan+...+nov,data = bildPrim)
+
+##also represented as
+
+Daily Median Temperature = B0+B1(Year)+B2(January)+...B11(November)+E
+
+The daily median temperature functions as the response to the models predictors. These predictors are the year plus the months of January through November. In other words the daily median temperature is being predicted by the given year and the given month excluding December. 
+
+#### R^2 Interpretation
+
+The R^2 value of 0.7245 means that approximately 72.45% of the variation in the daily median temperature that can be explained by the linear combination of the independent variables (year, January through November).
+
+#### F Test Interpretation
+
+![Visualization of F-Test](Ftest_Pic.png)
+##f = (SSR/p) / (SSE/(N-p-1))
+
+This compares the variance explained by the model to the variance that is not explained by the model. The F-statistic value of 9677 with 12 and 44159 degrees of freedom and a p-value < 2.2e-16 suggests that the model is statistically significant.
+
+#### Coefficient Interpretation
+
+The estimate column shows the estimated value of the regression coefficients, which represent the change in the response variable (dailyMid) for a one-unit increase in the predictor variable. For example, the estimate for the year coefficient is 0.022813, which means that the dailyMid value is expected to increase by 0.022813 for each additional year. We can also see that the months vary between degrees of positive and negative correlations, reflecting the seasons, in which January and February have negative correlation as they are winter months. Conversely July and August have the highest coefficients as they appear to be the peak of summer in Oxford.
+
+#### Residuals
+
+```{r, include=FALSE}
+qqnorm(bildPrim$dailyMid, ylab="Daily Median Tempurature")
+qqline(bildPrim$dailyMid, col = "steelblue", lwd = 2)
+```
+Well, I think it is safe to say that assuming normality of the daily median temperatures was an incorrect assumption. Oh well. It appears to follow a cubic curve.
+
+#### Hypothesis Test
+
+```{r, include=FALSE}
+med0Dec=lm(dailyMid ~ jan+feb+march+april+may+june+july+aug+sept+oct+nov+dec,data = bildPrim)
+med0DecNYr=lm(dailyMid ~ year+jan+feb+march+april+may+june+july+aug+sept+oct+nov+dec,data = bildPrim)
+med0Day=lm(dailyMid ~ day_of_month+year+jan+feb+march+april+may+june+july+aug+sept+oct+nov,data = bildPrim)
+```
+
+##Demonstration of December collinearity
+
+```{r, include=FALSE}
+summary(med0DecNYr)
+summary(med0Dec)
+```
+
+##Comparison of model with specific day vs smaller model
+
+```{r, include=FALSE}
+anova(med0Day,med0Mod)
+```
+
+#### Prediction
+
+```{r, include=FALSE}
+predict(med0Mod, new = data.frame(year=2000, jan=1, feb=0,march=0,april=0,may=0,june=0,july=0,aug=0,sept=0,oct=0,nov=0), interval = "prediction")
+predict(med0Mod, new = data.frame(year=2100, jan=1, feb=0,march=0,april=0,may=0,june=0,july=0,aug=0,sept=0,oct=0,nov=0), interval = "prediction")
+```
+On a given day at Oxford in January, the median temperature in the year 2100 will be about 43F. Though the median may range from as low as 33F to as high as 53F. In any case it aught to be 3F hotter than it was in the year 2000.
+
+#### Conclusion
+
+In conclusion, this model shows a certain rise in temperature over the years. I would be interested to find the source of December's collinearity and improve the model in such a way that the day may be used as a predictor with a greater degree of relevancy in the way it may account for the greater variance of day to today. Maybe I am wrong to assume it already does not encompass that. All in all, this has really been an exercise in how quickly can Michael generate all this in a day. Disappointing in that I think had I given myself more time I could have tried out more things. For example, I had technical errors with ‘ggplot2’ that could not get sorted out in time, as I appear to be the first person to have this error: there were no results online for the error code I got when trying to use ggplot(). "Error in .standalone_types_check_dot_call(ffi_standalone_check_number_1.0.7, :
+object 'ffi_standalone_check_number_1.0.7' not found".
